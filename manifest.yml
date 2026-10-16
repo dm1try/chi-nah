@@ -11,7 +11,7 @@ needs:
 files:
   chi_nah.md:
     sha256: sha256:e4186b3e86bbf7c30287429f98688b175b54c2eb01bf7f964c0c438958cb551e
-    description: "How to react when nah blocks a call: it is final; name the guard to the user"
+    description: "A call nah blocks is final: never route around it (no rewording, no other tool); tell the user the guard, which they can pause with `nah nap <guard>` in their own terminal"
 hooks:
   nah_guard.rb:
     sha256: sha256:045a05929691542339480406ef32f592fdfa7d76d7d88db762cb143ec71cecc0
