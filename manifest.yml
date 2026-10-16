@@ -14,7 +14,7 @@ files:
     description: "A call nah blocks is final: never route around it (no rewording, no other tool); tell the user the guard, which they can pause with `nah nap <guard>` in their own terminal"
 hooks:
   nah_guard.rb:
-    sha256: sha256:045a05929691542339480406ef32f592fdfa7d76d7d88db762cb143ec71cecc0
+    sha256: sha256:0bf2bf416a90b59ff4a05534d5889f30f8ed5bb09943cd523a4d259f17eb8585
     event: before_tool_call
     on_error: log
     priority: 10

@@ -165,7 +165,7 @@ class NahGuard
       { status: status.exitstatus, body: parse(out), stderr: err.strip }
     end
   rescue SystemCallError => e
-    { error: "nah could not run (#{@bin}): #{e.message}" }
+    { error: "nah could not run: #{e.message}" }
   end
 
   # The stdin write runs beside the reads, so a payload bigger than the
