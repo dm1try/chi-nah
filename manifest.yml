@@ -1,0 +1,16 @@
+name: chi-nah
+version: 0.1.0
+scope: system
+description: "nah's deterministic guards on chi's shell and file calls: blocks the catastrophic ones (secret exfiltration, rm -rf ~, git reset --hard, curl | sh); everything else goes to chi's own rules"
+# No trust_level: an external bundle can't vouch for itself, so chi shows it
+# as experimental.
+needs:
+  - command: nah
+    why: decides each shell and file call (block or delegate)
+    hint: "curl -fsSL nahguard.ai/install | sh"
+hooks:
+  nah_guard.rb:
+    sha256: sha256:045a05929691542339480406ef32f592fdfa7d76d7d88db762cb143ec71cecc0
+    event: before_tool_call
+    on_error: log
+    priority: 10

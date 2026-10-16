@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# A stand-in for `nah decide` in the tests. FAKE_NAH_MODE picks the answer;
+# FAKE_NAH_LOG, when set, gets the stdin it read (one JSON object a line).
+require "json"
+
+abort "fake nah: only `decide`" unless ARGV == ["decide"]
+
+mode = ENV.fetch("FAKE_NAH_MODE", "delegate")
+
+def answer(verdict, status, reason: "no guard blocked this call", names: [])
+  body = { schema: "nah/decide/v1", v: 1, verdict: verdict, reason: reason,
+           policy_attributions: names.map { |n| { kind: "shipped", name: n } },
+           id: "decision-fake", coverage: "full", duration_us: 1 }
+  puts JSON.generate(body)
+  exit status
+end
+
+case mode
+when "noread" # never reads stdin, never answers
+  sleep 30
+  exit 2
+when "noread_delegate" # answers without reading stdin
+  answer("delegate", 2)
+end
+
+input = $stdin.read
+File.open(ENV["FAKE_NAH_LOG"], "a") { |f| f.puts(input) } if ENV["FAKE_NAH_LOG"]
+
+case mode
+when "block"
+  answer("block", 1, reason: "secrets-env blocked reading a credential file\nsecrets-exfil blocked sending it",
+                     names: %w[secrets-env secrets-exfil])
+when "block_self"
+  answer("block", 1, reason: "nah self-protection blocked a change to nah")
+when "delegate" then answer("delegate", 2)
+when "exit3"
+  warn "nah: invalid input; no decision was produced"
+  exit 3
+when "exit4" then exit 4
+when "hang"
+  sleep 30
+when "garbage"
+  puts "this is not json {"
+  exit 1
+when "block_noreason"
+  puts JSON.generate(verdict: "block", policy_attributions: [])
+  exit 1
+when "block_emptyreason"
+  answer("block", 1, reason: "  ")
+when "block_exit2" # a block body with the delegate exit code
+  answer("block", 2, reason: "mixed")
+when "delegate_exit1"
+  answer("delegate", 1)
+when "array"
+  puts "[1, 2]"
+  exit 1
+when "stderr_flood" # lots of stderr, then a delegate
+  $stderr.write("x" * (3 << 20))
+  answer("delegate", 2)
+else
+  abort "fake nah: unknown mode #{mode}"
+end

@@ -1,0 +1,21 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Refreshes the sha256 lines in manifest.yml after a hook or memory edit
+# (chi checks them at install, and at Engine start for the hook).
+require "digest"
+
+root = File.expand_path("..", __dir__)
+path = File.join(root, "manifest.yml")
+text = File.read(path)
+section = nil
+out = text.lines.map do |line|
+  section = Regexp.last_match(1) if line =~ /\A(\w+):/
+  file = Regexp.last_match(1) if line =~ /\A  ([\w.-]+):/
+  @current = section == "hooks" ? File.join("hooks", file) : file if file
+  next line unless line =~ /\A(\s+sha256: )sha256:\h*/ && @current
+
+  "#{Regexp.last_match(1)}sha256:#{Digest::SHA256.file(File.join(root, @current)).hexdigest}\n"
+end
+File.write(path, out.join)
+puts "manifest.yml checksums refreshed"
