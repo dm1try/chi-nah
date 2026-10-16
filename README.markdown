@@ -55,13 +55,17 @@ is under 300 lines and runs inside chi.
 Paths are sent as chi resolves them (absolute). Every other tool (memory, web, delegate, MCP, plugin tools) is
 not checked and starts no process.
 
-A block comes back to the model as chi's usual guardrail denial, with nah's guard names as the rule:
+A block comes back to the model as chi's usual guardrail denial, with nah's guard names as the rule and a
+last clause on how you pause them:
 
 ```
-[execute] Error: denied by guardrail (rule secrets-env, secrets-exfil, nah): secrets-env blocked disclosure of a
-credential environment variable or reading an environment credential file; … The user was not asked. Do not retry
-it or reach the same result another way; ask the user how to proceed.
+[execute] Error: denied by guardrail (rule git-clean-force, git-hard-reset, nah): git-clean-force blocked a forced
+clean selecting the project root; …; git-hard-reset blocked git reset --hard; …; the user can pause them with
+`nah nap git-clean-force git-hard-reset` in their own terminal. The user was not asked. Do not retry it or reach
+the same result another way; ask the user how to proceed.
 ```
+
+A block by nah's self-protection names no guard and gets no such clause (its reason already says how).
 
 The bundle also installs a short memory, `chi_nah`, that tells the model a block is final and to name the
 guard to you.

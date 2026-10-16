@@ -84,16 +84,24 @@ class NahGuardTest < Minitest::Test
     assert_equal 1, votes(ev).size
     kind, reason, opts = votes(ev).first
     assert_equal :deny, kind
-    assert_equal "secrets-env blocked reading a credential file; secrets-exfil blocked sending it", reason
+    assert_equal "secrets-env blocked reading a credential file; secrets-exfil blocked sending it; " \
+                 "the user can pause them with `nah nap secrets-env secrets-exfil` in their own terminal", reason
     assert_equal({ rule: "secrets-env, secrets-exfil", source: "nah" }, opts)
     refute opts.key?(:advice), "advice: would replace chi's do-not-retry tail"
   end
 
-  def test_block_without_a_named_guard_has_no_rule
+  def test_one_guard_gets_a_singular_nap_hint
+    ev = run_mode("block_one")
+    assert_equal "git-hard-reset blocked git reset --hard; " \
+                 "the user can pause it with `nah nap git-hard-reset` in their own terminal", votes(ev).first[1]
+    assert_equal "git-hard-reset", votes(ev).first[2][:rule]
+  end
+
+  def test_block_without_a_named_guard_has_no_rule_and_no_nap_hint
     ev = run_mode("block_self")
     kind, reason, opts = votes(ev).first
     assert_equal :deny, kind
-    assert_match(/self-protection/, reason)
+    assert_equal "nah self-protection blocked a change to nah", reason
     assert_equal({ rule: nil, source: "nah" }, opts)
   end
 

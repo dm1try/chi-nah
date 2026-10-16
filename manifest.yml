@@ -10,11 +10,11 @@ needs:
     hint: "curl -fsSL nahguard.ai/install | sh"
 files:
   chi_nah.md:
-    sha256: sha256:e4186b3e86bbf7c30287429f98688b175b54c2eb01bf7f964c0c438958cb551e
+    sha256: sha256:239e2ffe06b8c886c4ddba22606e69b1961bb2c48bc43f9b2bc8f9d8579d944f
     description: "A call nah blocks is final: never route around it (no rewording, no other tool); tell the user the guard, which they can pause with `nah nap <guard>` in their own terminal"
 hooks:
   nah_guard.rb:
-    sha256: sha256:0bf2bf416a90b59ff4a05534d5889f30f8ed5bb09943cd523a4d259f17eb8585
+    sha256: sha256:7918a910824d4a91a3b52e65ae053287000da5aaf307505534c72627a2a639ac
     event: before_tool_call
     on_error: log
     priority: 10

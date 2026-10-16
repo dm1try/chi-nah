@@ -212,7 +212,8 @@ class NahGuard
 
     case decision
     in { status: 1, body: { verdict: "block", reason: String => reason } } unless reason.strip.empty?
-      event[:guardrail].deny!(one_line(reason), rule: guard_names(decision[:body]), source: "nah")
+      names = guard_names(decision[:body])
+      event[:guardrail].deny!(deny_reason(reason, names), rule: names.empty? ? nil : names.join(", "), source: "nah")
     in { status: 2, body: { verdict: "delegate" } }
       nil
     else
@@ -225,11 +226,22 @@ class NahGuard
     reason.lines.map(&:strip).reject(&:empty?).join("; ")
   end
 
-  # "secrets-env, secrets-exfil"; nil for a block no named guard made
+  # nah's reason, then how the user pauses the guards: a model told only
+  # to "ask the user" tends to offer a retry that can never pass. A
+  # self-protection block names no guard (its reason already says nah nap).
+  def deny_reason(reason, names)
+    text = one_line(reason)
+    return text if names.empty?
+
+    "#{text}; the user can pause #{names.size == 1 ? "it" : "them"} with " \
+      "`nah nap #{names.join(" ")}` in their own terminal"
+  end
+
+  # ["secrets-env", "secrets-exfil"]; [] for a block no named guard made
   # (nah's self-protection), so the deny reads "(nah)".
   def guard_names(body)
-    names = Array(body[:policy_attributions]).filter_map { |a| a[:name].to_s if a.is_a?(Hash) && a[:name] }
-    names.reject(&:empty?).uniq.join(", ").then { |s| s.empty? ? nil : s }
+    Array(body[:policy_attributions]).filter_map { |a| a[:name].to_s if a.is_a?(Hash) && a[:name] }
+                                     .reject(&:empty?).uniq
   end
 
   def no_decision(decision)

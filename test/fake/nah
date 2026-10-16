@@ -32,6 +32,8 @@ case mode
 when "block"
   answer("block", 1, reason: "secrets-env blocked reading a credential file\nsecrets-exfil blocked sending it",
                      names: %w[secrets-env secrets-exfil])
+when "block_one"
+  answer("block", 1, reason: "git-hard-reset blocked git reset --hard", names: %w[git-hard-reset])
 when "block_self"
   answer("block", 1, reason: "nah self-protection blocked a change to nah")
 when "delegate" then answer("delegate", 2)
