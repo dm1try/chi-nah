@@ -12,6 +12,9 @@ files:
   chi_nah.md:
     sha256: sha256:239e2ffe06b8c886c4ddba22606e69b1961bb2c48bc43f9b2bc8f9d8579d944f
     description: "A call nah blocks is final: never route around it (no rewording, no other tool); tell the user the guard, which they can pause with `nah nap <guard>` in their own terminal"
+# Built and tested against chi 0.74.0 / 0.75.0 (before_tool_call targets,
+# guardrail deny! with source:).
+requires_chi: ">= 0.74.0"
 hooks:
   nah_guard.rb:
     sha256: sha256:7918a910824d4a91a3b52e65ae053287000da5aaf307505534c72627a2a639ac
