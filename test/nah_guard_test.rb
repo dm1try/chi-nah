@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
-# Standalone tests for hooks/nah_guard.rb: no chi needed. A fake `nah`
-# (test/fake/nah) answers per FAKE_NAH_MODE.
+# Tests for hooks/nah_guard.rb on chi's bundle test kit (chi >= 0.80.0,
+# experimental). A fake `nah` (test/fake/nah) answers per FAKE_NAH_MODE.
 #
 #   ruby -Itest test/nah_guard_test.rb
 require "minitest/autorun"
+require "samagotchi/testing/minitest"
 require "json"
 require "tmpdir"
 require "yaml"
@@ -15,15 +16,6 @@ require_relative "../hooks/nah_guard"
 class NahGuardTest < Minitest::Test
   FAKE_DIR = File.expand_path("fake", __dir__)
   FAKE = File.join(FAKE_DIR, "nah")
-
-  # Records the votes a chi Verdict would get.
-  class StubGuardrail
-    attr_reader :votes
-
-    def initialize = @votes = []
-    def deny!(reason, **opts) = @votes << [:deny, reason, opts]
-    def ask!(reason, **opts) = @votes << [:ask, reason, opts]
-  end
 
   def setup
     NahGuard.reset_warning!
@@ -45,7 +37,7 @@ class NahGuardTest < Minitest::Test
     notices = []
     {
       type: :before_tool_call, iteration: 1, call: call, params: "",
-      guardrail: StubGuardrail.new, context: { cwd: cwd },
+      guardrail: Samagotchi::Testing::Verdict.new(call: call), context: { cwd: cwd },
       targets: { cwd: cwd }.merge(targets),
       notify: ->(text, level: :info, **) { notices << [text, level] },
       notices: notices
@@ -69,7 +61,8 @@ class NahGuardTest < Minitest::Test
     File.readlines(@log).map { |line| JSON.parse(line) }
   end
 
-  def votes(ev) = ev[:guardrail].votes
+  # [[decision, reason, options]] of every vote, kept or not.
+  def votes(ev) = ev[:guardrail].votes.map { |v| [v.decision, v.reason, v.options] }
 
   def timed
     t = Process.clock_gettime(Process::CLOCK_MONOTONIC)
@@ -320,5 +313,50 @@ class NahGuardTest < Minitest::Test
 
   def fake_pids
     `pgrep -f #{FAKE}`.split.map(&:to_i)
+  end
+end
+
+# The bundle as chi loads it (manifest, hook file, settings), each call
+# through a real Guardrails::Gate: the targets and the verdict are chi's.
+class NahGuardBundleTest < Samagotchi::Testing::Case
+  ROOT = File.expand_path("..", __dir__)
+
+  def setup
+    NahGuard.reset_warning!
+    @dir = Dir.mktmpdir("chi-nah-bundle")
+    @log = File.join(@dir, "stdin.log")
+    ENV["FAKE_NAH_LOG"] = @log
+    @bundle = load_bundle(ROOT, settings: { "bin" => NahGuardTest::FAKE }, host: { cwd: @dir })
+  end
+
+  def teardown
+    FileUtils.rm_rf(@dir)
+    ENV.delete("FAKE_NAH_LOG")
+    ENV.delete("FAKE_NAH_MODE")
+  end
+
+  def sent = JSON.parse(File.read(@log))
+
+  def test_a_block_is_chis_guardrail_deny
+    ENV["FAKE_NAH_MODE"] = "block"
+    verdict = @bundle.tool_call({ name: "execute", content: "cat .env" })
+    assert verdict.deny?
+    assert_equal "secrets-env, secrets-exfil", verdict.rule
+    assert_equal "nah", verdict.source
+    assert_includes verdict.deny_text, "`nah nap secrets-env secrets-exfil`"
+    assert_includes verdict.deny_text, Samagotchi::Guardrails::Verdict::DO_NOT_RETRY
+    assert_equal({ "command" => "cat .env" }, sent["input"])
+    assert_equal File.realpath(@dir), File.realpath(sent["cwd"])
+  end
+
+  def test_a_delegate_leaves_the_call_to_chi
+    ENV["FAKE_NAH_MODE"] = "delegate"
+    verdict = @bundle.tool_call({ name: "read", content: "lib/a.rb" })
+    refute verdict.deny?
+    assert_empty verdict.votes
+    assert_empty @bundle.notices
+    # The path as chi's Targets resolve it, against the session's cwd.
+    assert_equal File.join(@dir, "lib", "a.rb"), sent["input"]["file_path"]
+    assert_equal [sent["input"]["file_path"]], verdict.targets.paths
   end
 end
