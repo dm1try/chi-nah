@@ -162,7 +162,7 @@ needs `secrets-env` napped or disabled.
 ## Development
 
 ```sh
-ruby -Itest test/nah_guard_test.rb    # a fake nah (test/fake/nah), no chi needed
+ruby -Itest test/nah_guard_test.rb    # a fake nah (test/fake/nah); needs chi >= 0.80.0 (the test kit)
 script/sha                            # after editing the hook or the memory: refresh manifest.yml's checksums
 ```
 

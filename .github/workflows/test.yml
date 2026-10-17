@@ -23,4 +23,6 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
       # minitest is a bundled gem; install it in case this Ruby left it out.
       - run: gem list -i minitest >/dev/null || gem install minitest
+      # The tests run on chi's bundle test kit (samagotchi/testing).
+      - run: gem install samagotchi -v ">= 0.80.0" --no-document
       - run: ruby -Itest test/nah_guard_test.rb
