@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
-# Tests for hooks/nah_guard.rb on chi's bundle test kit (chi >= 0.80.0,
+# Tests for plugin.rb on chi's bundle test kit (chi >= 0.80.0,
 # experimental). A fake `nah` (test/fake/nah) answers per FAKE_NAH_MODE.
 #
-#   ruby -Itest test/nah_guard_test.rb
+#   ruby -Itest test/nah_guard_test.rb      (or: chi bundle test .)
 require "minitest/autorun"
 require "samagotchi/testing/minitest"
 require "json"
@@ -11,7 +11,16 @@ require "tmpdir"
 require "yaml"
 require "digest"
 require "fileutils"
-require_relative "../hooks/nah_guard"
+
+# NahGuard for the unit tests, evaluated as chi evaluates plugin.rb: into a
+# module of its own (chi gives each load a fresh module in the bundle's namespace),
+# so no top-level Plugin class is defined. NahGuardBundleTest loads the
+# bundle itself through the kit.
+module ChiNahPlugin
+  FILE = File.expand_path("../plugin.rb", __dir__)
+  module_eval(File.read(FILE), FILE, 1)
+end
+NahGuard = ChiNahPlugin::NahGuard
 
 class NahGuardTest < Minitest::Test
   FAKE_DIR = File.expand_path("fake", __dir__)
@@ -291,9 +300,9 @@ class NahGuardTest < Minitest::Test
   def test_manifest_checksums_match_the_files
     root = File.expand_path("..", __dir__)
     manifest = YAML.load_file(File.join(root, "manifest.yml"))
-    entries = manifest.fetch("hooks", {}).transform_keys { |k| File.join("hooks", k) }
-                      .merge(manifest.fetch("files", {}))
-    refute_empty entries
+    refute manifest.key?("hooks"), "the guard is plugin.rb's chi.on, not a hooks/ file"
+    plugin = manifest.fetch("plugin")
+    entries = { plugin.fetch("file") => plugin }.merge(manifest.fetch("files", {}))
     entries.each do |file, entry|
       sha = entry.is_a?(Hash) ? entry["sha256"] : entry
       actual = "sha256:#{Digest::SHA256.file(File.join(root, file)).hexdigest}"
@@ -316,13 +325,12 @@ class NahGuardTest < Minitest::Test
   end
 end
 
-# The bundle as chi loads it (manifest, hook file, settings), each call
+# The bundle as chi loads it (manifest, plugin.rb, settings), each call
 # through a real Guardrails::Gate: the targets and the verdict are chi's.
 class NahGuardBundleTest < Samagotchi::Testing::Case
   ROOT = File.expand_path("..", __dir__)
 
   def setup
-    NahGuard.reset_warning!
     @dir = Dir.mktmpdir("chi-nah-bundle")
     @log = File.join(@dir, "stdin.log")
     ENV["FAKE_NAH_LOG"] = @log
@@ -336,6 +344,32 @@ class NahGuardBundleTest < Samagotchi::Testing::Case
   end
 
   def sent = JSON.parse(File.read(@log))
+
+  def test_the_guard_is_one_before_tool_call_hook_at_priority_10
+    assert_equal [["chi-nah", "plugin.rb", 10]], @bundle.hook_names(:before_tool_call)
+    assert_empty @bundle.bundle_commands
+    assert_empty @bundle.bundle_tools
+  end
+
+  def test_the_settings_reach_the_guard
+    bundle = load_bundle(ROOT, settings: { "bin" => File.join(@dir, "no-such-nah"), "unavailable" => "deny" },
+                               host: { cwd: @dir })
+    verdict = bundle.tool_call({ name: "execute", content: "ls" })
+    assert verdict.deny?
+    assert_equal "nah-unavailable", verdict.rule
+    assert_includes verdict.deny_text, "nah could not run"
+  end
+
+  # Each kit load is a fresh NahGuard class (as each worker's is), so its
+  # notify-once flag starts clear.
+  def test_a_missing_nah_notifies_once_and_leaves_the_call_to_chi
+    bundle = load_bundle(ROOT, settings: { "bin" => File.join(@dir, "no-such-nah") }, host: { cwd: @dir })
+    2.times { refute bundle.tool_call({ name: "execute", content: "ls" }).deny? }
+    assert_equal 1, bundle.notices.size
+    notice = bundle.notices.first
+    assert_match(/\Anah gave no decision \(nah could not run/, notice.text)
+    assert_equal :warn, notice.level
+  end
 
   def test_a_block_is_chis_guardrail_deny
     ENV["FAKE_NAH_MODE"] = "block"

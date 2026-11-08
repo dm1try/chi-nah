@@ -1,5 +1,5 @@
 name: chi-nah
-version: 0.1.0
+version: 0.2.0
 scope: system
 description: "nah's deterministic guards on chi's shell and file calls: blocks the catastrophic ones (secret exfiltration, rm -rf ~, git reset --hard, curl | sh); everything else goes to chi's own rules"
 # No trust_level: an external bundle can't vouch for itself, so chi shows it
@@ -13,11 +13,8 @@ files:
     sha256: sha256:239e2ffe06b8c886c4ddba22606e69b1961bb2c48bc43f9b2bc8f9d8579d944f
     description: "A call nah blocks is final: never route around it (no rewording, no other tool); tell the user the guard, which they can pause with `nah nap <guard>` in their own terminal"
 # Built and tested against chi 0.74.0 / 0.75.0 (before_tool_call targets,
-# guardrail deny! with source:).
+# guardrail deny! with source:); plugin.rb's chi.on is chi 0.2.0.
 requires_chi: ">= 0.74.0"
-hooks:
-  nah_guard.rb:
-    sha256: sha256:7918a910824d4a91a3b52e65ae053287000da5aaf307505534c72627a2a639ac
-    event: before_tool_call
-    on_error: log
-    priority: 10
+plugin:
+  file: plugin.rb
+  sha256: sha256:29100bb2e1d35388925cf02d212c592d08123788f88aff047d699e0de2f96635

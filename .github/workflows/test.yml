@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   test:
-    name: hook tests (Ruby ${{ matrix.ruby }})
+    name: plugin tests (Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

@@ -3,8 +3,8 @@
 require "json"
 require "open3"
 
-# A before_tool_call guard that asks nah (https://github.com/manuelschipper/nah)
-# about each shell and file call. nah blocks calls it can prove are
+# chi-nah's plugin: a before_tool_call guard (chi.on, priority 10) that asks
+# nah (https://github.com/manuelschipper/nah) about each shell and file call. nah blocks calls it can prove are
 # catastrophic (secret exfiltration, rm -rf ~, git reset --hard, curl | sh …)
 # and never approves one: its "delegate" leaves the call to chi's own
 # allow/ask/deny rules.
@@ -290,5 +290,22 @@ class NahGuard
 
   def format_seconds(value)
     value == value.to_i ? "#{value.to_i}s" : "#{value}s"
+  end
+end
+
+# What chi loads: one NahGuard, built once from config.yml `bundles: chi-nah:`
+# when the plugin loads, on before_tool_call at priority 10 (before the
+# other bundles' guards). A raise in the handler is logged and the call
+# goes on (chi.on's log policy); NahGuard#call turns its own errors into
+# `unavailable` first.
+class Plugin
+  PRIORITY = 10
+
+  def initialize(settings = {})
+    @guard = NahGuard.new(settings)
+  end
+
+  def register(chi)
+    chi.on(:before_tool_call, priority: PRIORITY) { |event, _ctx| @guard.call(event) }
   end
 end

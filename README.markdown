@@ -23,7 +23,7 @@ It is opt-in protection for the riskier setups: small or unfamiliar models, unat
 
    ```sh
    chi bundle install https://github.com/dm1try/chi-nah            # the main branch
-   chi bundle install https://github.com/dm1try/chi-nah#v0.1.0     # a tag
+   chi bundle install https://github.com/dm1try/chi-nah#v0.2.0     # a tag
    ```
 
 3. Point chi at nah by its absolute path (recommended, see [PATH](#path)), in `~/.config/samagotchi/config.yml`:
@@ -34,14 +34,14 @@ It is opt-in protection for the riskier setups: small or unfamiliar models, unat
        bin: ~/.local/bin/nah
    ```
 
-4. Restart running sessions' workers: a worker loads bundle hooks when it starts.
+4. Restart running sessions' workers: a worker loads bundle plugins when it starts.
 
 `chi bundle status chi-nah` shows the bundle; `chi bundle upgrade chi-nah` pulls a newer version;
 `chi bundle uninstall chi-nah` removes it.
 
 The bundle has no `trust_level`, so chi lists it as *experimental*. That is deliberate: a bundle that isn't
-shipped with chi can't vouch for itself. Read [`hooks/nah_guard.rb`](hooks/nah_guard.rb) before installing; it
-is under 300 lines and runs inside chi.
+shipped with chi can't vouch for itself. Read [`plugin.rb`](plugin.rb) before installing; it
+is about 300 lines and runs inside chi.
 
 ## What it checks
 
@@ -107,7 +107,7 @@ All optional, under `bundles: chi-nah:` in config.yml:
 
 "No decision" is anything other than a clean block or delegate: nah missing, a timeout (nah is killed), exit 3
 (nah's own "no decision", which a panic inside nah also reports), an answer that doesn't parse or has an
-unexpected shape, or an error inside the hook.
+unexpected shape, or an error inside the guard.
 
 - `notify` (default): the call goes on to chi's own rules, and one warning line says nah was skipped. It shows
   once per chi process; later misses only go to chi's log.
@@ -115,23 +115,16 @@ unexpected shape, or an error inside the hook.
   standing rule can't hide later failures.
 - `deny`: the call is denied. Use it for unattended runs that must fail closed.
 
-`deny` covers everything that happens while the hook runs. It can't cover a hook that never loads (its file
-edited after install, so its checksum no longer matches; a Ruby error at load): chi then reports the hook as not
-loaded and runs without it. To have chi deny every tool call in that case too, install your own copy with
-`on_error: fail_closed` on the hook in `manifest.yml`:
-
-```sh
-git clone https://github.com/dm1try/chi-nah && cd chi-nah
-sed -i.bak 's/on_error: log/on_error: fail_closed/' manifest.yml
-chi bundle install .
-```
+`deny` covers everything that happens while the guard runs. It can't cover a plugin that never loads (its file
+edited after install, so its checksum no longer matches; a Ruby error at load): chi then reports the plugin as not
+loaded and runs without it.
 
 ### PATH
 
 A worker started by `chi web` or the desktop helper may have a shorter `PATH` than your shell (no
 `~/.local/bin`). Set `bin:` to an absolute path. chi's `needs:` check only looks at `PATH`, so with a custom `bin:`
 `chi bundle status chi-nah` and the `[needs nah: not found on PATH]` mark on the memory's index line can say nah
-is missing while the hook works. The hook's own warning (above) is the real signal.
+is missing while the guard works. The guard's own warning (above) is the real signal.
 
 ## When nah blocks something you need
 
@@ -163,7 +156,9 @@ needs `secrets-env` napped or disabled.
 
 ```sh
 ruby -Itest test/nah_guard_test.rb    # a fake nah (test/fake/nah); needs chi >= 0.80.0 (the test kit)
-script/sha                            # after editing the hook or the memory: refresh manifest.yml's checksums
+chi bundle test .                     # the same, on chi's own Ruby and lib
+chi bundle check .                    # the manifest, the plugin's load, its requires_chi floor
+script/sha                            # after editing plugin.rb or the memory: refresh manifest.yml's checksums
 ```
 
 chi installs every top-level `*.md` file of a bundle as a memory, which is why this file is `README.markdown`.
